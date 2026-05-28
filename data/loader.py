@@ -1,63 +1,45 @@
 from __future__ import annotations
 
 from pathlib import Path
-import shutil
 
 import numpy as np
 
-
-def normalize_images(images) -> np.ndarray:
-    images = np.asarray(images, dtype=np.float32)
-    if images.ndim == 3:
-        images = images.reshape(images.shape[0], -1)
-    return np.round(images / 255.0, 4)
+from utils.io import load_json, load_psl
 
 
-def load_mnist_arrays(root: str | Path | None = None, download: bool = True):
-    root = Path(root) if root is not None else Path(__file__).resolve().parents[1] / "data" / "raw"
+def load_babyai_partition(data_dir: str | Path, partition: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    data_dir = Path(data_dir)
+    entity_rows = load_psl(data_dir / "entity-data-map.txt", dtype=int)
+    type_rows = load_psl(data_dir / "entity-type-map.txt", dtype=int)
+    targets = _target_step_ids(data_dir / f"action-target-{partition}.txt")
 
-    try:
-        from torchvision.datasets import MNIST
-        from torchvision.datasets.mnist import read_image_file, read_label_file
-    except ImportError as exc:
-        raise RuntimeError("torchvision is required to load MNIST data.") from exc
+    token_by_step = {row[0]: row[1:-1] for row in entity_rows}
+    label_by_step = {row[0]: row[-1] for row in entity_rows}
+    type_by_step = {row[0]: row[1:] for row in type_rows}
 
-    _ensure_flat_mnist_files(root, download=download, mnist_cls=MNIST)
+    token_ids = []
+    type_ids = []
+    labels = []
+    for step_id in targets:
+        token_ids.append(token_by_step[step_id])
+        type_ids.append(type_by_step[step_id])
+        labels.append(label_by_step[step_id])
+    return (
+        np.asarray(token_ids, dtype=np.int64),
+        np.asarray(type_ids, dtype=np.int64),
+        np.asarray(labels, dtype=np.int64),
+    )
 
-    train_images = read_image_file(str(root / "train-images-idx3-ubyte")).numpy()
-    train_labels = read_label_file(str(root / "train-labels-idx1-ubyte")).numpy()
-    test_images = read_image_file(str(root / "t10k-images-idx3-ubyte")).numpy()
-    test_labels = read_label_file(str(root / "t10k-labels-idx1-ubyte")).numpy()
 
-    images = np.concatenate((train_images, test_images), axis=0)
-    labels = np.concatenate((train_labels, test_labels), axis=0)
+def load_vocabularies(root: str | Path) -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
+    root = Path(root)
+    return (
+        load_json(root / "token-vocab.json"),
+        load_json(root / "type-vocab.json"),
+        load_json(root / "action-vocab.json"),
+    )
 
-    return normalize_images(images), labels.astype(np.int64)
 
-
-def _ensure_flat_mnist_files(root: Path, *, download: bool, mnist_cls) -> None:
-    root.mkdir(parents=True, exist_ok=True)
-    required = [
-        "train-images-idx3-ubyte",
-        "train-labels-idx1-ubyte",
-        "t10k-images-idx3-ubyte",
-        "t10k-labels-idx1-ubyte",
-    ]
-    if all((root / name).exists() for name in required):
-        return
-
-    legacy_raw = root / "MNIST" / "raw"
-    if not all((legacy_raw / name).exists() for name in required) and download:
-        mnist_cls(root=str(root), train=True, download=True)
-        mnist_cls(root=str(root), train=False, download=True)
-
-    if all((legacy_raw / name).exists() for name in required):
-        for name in required:
-            shutil.copy2(legacy_raw / name, root / name)
-
-    missing = [name for name in required if not (root / name).exists()]
-    if missing:
-        raise FileNotFoundError(
-            f"Missing MNIST raw files in {root}: {missing}. "
-            "Run with download=True or place the IDX files directly under data/raw/."
-        )
+def _target_step_ids(path: Path) -> list[int]:
+    rows = load_psl(path, dtype=str)
+    return sorted({int(row[0]) for row in rows})

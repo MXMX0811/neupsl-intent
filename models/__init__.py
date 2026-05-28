@@ -1,4 +1,4 @@
-from .transformer import MNISTTransformerClassifier
-from .deeppsl import MNISTAdditionModel, MNISTDeepPSL
+from .deeppsl import BabyAIActionModel
+from .transformer import BabyAIPredictor
 
-__all__ = ["MNISTTransformerClassifier", "MNISTAdditionModel", "MNISTDeepPSL"]
+__all__ = ["BabyAIActionModel", "BabyAIPredictor"]

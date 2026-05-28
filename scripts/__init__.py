@@ -1,1 +1,1 @@
-"""Command-line entry points for mnist-add-minreal."""
+"""Command-line entry points for the BabyAI Transformer + NeuPSL demo."""

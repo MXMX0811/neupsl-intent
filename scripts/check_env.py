@@ -9,7 +9,7 @@ import sys
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Check Java and pslpython availability for mnist-add-minreal.")
+    parser = argparse.ArgumentParser(description="Check Java, pslpython, and optional MiniGrid availability for neupsl-intent.")
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
     return parser.parse_args()
 
@@ -37,6 +37,18 @@ def check_environment() -> dict:
     except Exception as exc:
         pslpython_error = f"{type(exc).__name__}: {exc}"
 
+    minigrid_ok = False
+    gymnasium_ok = False
+    try:
+        import gymnasium  # noqa: F401
+
+        gymnasium_ok = True
+        import minigrid  # noqa: F401
+
+        minigrid_ok = True
+    except Exception:
+        pass
+
     return {
         "python": sys.executable,
         "python_version": sys.version.split()[0],
@@ -47,6 +59,8 @@ def check_environment() -> dict:
         "pslpython_runtime_ok": pslpython_runtime_ok,
         "pslpython_version": pslpython_version,
         "pslpython_error": pslpython_error,
+        "gymnasium_ok": gymnasium_ok,
+        "minigrid_ok": minigrid_ok,
         "ready": java_ok and pslpython_ok and pslpython_runtime_ok,
     }
 
@@ -65,6 +79,8 @@ def main() -> None:
         print(f"  {status['java_version']}")
     print(f"pslpython: {'OK' if status['pslpython_ok'] else 'MISSING'} ({status['pslpython_version']})")
     print(f"pslpython.runtime: {'OK' if status['pslpython_runtime_ok'] else 'MISSING'}")
+    print(f"gymnasium: {'OK' if status['gymnasium_ok'] else 'MISSING'}")
+    print(f"minigrid: {'OK' if status['minigrid_ok'] else 'MISSING'}")
     if status["pslpython_error"]:
         print(f"  {status['pslpython_error']}")
     print(f"Ready for NeuPSL runtime: {status['ready']}")

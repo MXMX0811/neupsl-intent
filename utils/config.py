@@ -12,53 +12,45 @@ DEFAULT_SEED = 16
 
 @dataclass
 class DatasetConfig:
-    name: str = "mnist-1"
-    num_digits: int = 1
-    class_size: int = 10
-    pretrain_size: int = 20000
-    pretrain_valid_size: int = 5000
-    pretrain_overlap: float = 0.4
-    train_size: int = 1000
-    valid_size: int = 1000
-    inference_size: int = 5000
-    overlap: float = 0.0
+    name: str = "babyai"
+    action_size: int = 7
+    max_seq_len: int = 96
+    pretrain_size: int = 500
+    pretrain_valid_size: int = 100
+    train_size: int = 50
+    valid_size: int = 100
+    inference_size: int = 1000
+    min_episode_len: int = 3
+    mission_encoding: str = "surface"
+    generator_backend: str = "auto"
     seed: int | None = None
-    max_number: int = field(init=False)
-    max_sum: int = field(init=False)
+    pretrain_envs: tuple[str, ...] = ("BabyAI-GoToObj-v0", "BabyAI-Pickup-v0")
+    neupsl_envs: tuple[str, ...] = ("BabyAI-PickupLoc-v0", "BabyAI-OpenDoor-v0")
+    action_vocab: tuple[str, ...] = field(
+        default_factory=lambda: ("left", "right", "forward", "pickup", "drop", "toggle", "done")
+    )
 
     def __post_init__(self) -> None:
-        if self.name != "mnist-1":
+        if self.name != "babyai":
             raise ValueError(f"Unknown dataset: {self.name}")
-
-        self.num_digits = 1
-
-        self.max_number = 10**self.num_digits - 1
-        self.max_sum = 2 * self.max_number
-
+        if self.mission_encoding not in {"surface", "structured"}:
+            raise ValueError("mission_encoding must be 'surface' or 'structured'.")
+        if self.generator_backend not in {"auto", "minigrid", "synthetic"}:
+            raise ValueError("generator_backend must be 'auto', 'minigrid', or 'synthetic'.")
+        self.action_size = len(self.action_vocab)
         if self.seed is None:
-            self.seed = DEFAULT_SEED * 10000 + 100 * self.train_size + self.inference_size + self.num_digits
+            self.seed = DEFAULT_SEED * 10000 + 100 * self.train_size + self.inference_size
 
     def to_metadata_dict(self) -> dict:
         data = asdict(self)
-        return {
-            "name": data["name"],
-            "num-digits": data["num_digits"],
-            "class-size": data["class_size"],
-            "pretrain-size": data["pretrain_size"],
-            "pretrain-valid-size": data["pretrain_valid_size"],
-            "pretrain-overlap": data["pretrain_overlap"],
-            "train-size": data["train_size"],
-            "valid-size": data["valid_size"],
-            "inference-size": data["inference_size"],
-            "overlap": data["overlap"],
-            "seed": data["seed"],
-            "max-number": data["max_number"],
-            "max-sum": data["max_sum"],
-            "data-source": "mnist",
-        }
+        data["pretrain_envs"] = list(self.pretrain_envs)
+        data["neupsl_envs"] = list(self.neupsl_envs)
+        data["action_vocab"] = list(self.action_vocab)
+        data["data-source"] = "babyai"
+        return data
 
 
-def dataset_dir(dataset: str, data_root: str | Path = DEFAULT_DATA_ROOT) -> Path:
+def dataset_dir(dataset: str = "babyai", data_root: str | Path = DEFAULT_DATA_ROOT) -> Path:
     return Path(data_root) / f"experiment_{dataset}"
 
 
@@ -66,7 +58,7 @@ def pretrain_dir(config: DatasetConfig, data_root: str | Path = DEFAULT_DATA_ROO
     return (
         dataset_dir(config.name, data_root)
         / "pretrain"
-        / f"size_{config.pretrain_size:05d}-valid_{config.pretrain_valid_size:04d}-overlap_{config.pretrain_overlap:.2f}"
+        / f"size_{config.pretrain_size:04d}-valid_{config.pretrain_valid_size:04d}"
     )
 
 
@@ -74,24 +66,21 @@ def neupsl_train_dir(config: DatasetConfig, data_root: str | Path = DEFAULT_DATA
     return (
         dataset_dir(config.name, data_root)
         / "neupsl-train"
-        / f"size_{config.train_size:04d}-valid_{config.valid_size:04d}-overlap_{config.overlap:.2f}"
+        / f"size_{config.train_size:04d}-valid_{config.valid_size:04d}"
     )
 
 
 def inference_dir(config: DatasetConfig, data_root: str | Path = DEFAULT_DATA_ROOT) -> Path:
-    return (
-        dataset_dir(config.name, data_root)
-        / "inference"
-        / f"size_{config.inference_size:04d}"
-    )
+    return dataset_dir(config.name, data_root) / "inference" / f"size_{config.inference_size:04d}"
+
+
+def rules_dir(config: DatasetConfig, split: str, data_root: str | Path = DEFAULT_DATA_ROOT) -> Path:
+    return dataset_dir(config.name, data_root) / split / "rules"
 
 
 def experiment_id(config: DatasetConfig) -> str:
-    return f"train_{config.train_size}_infer_{config.inference_size}"
+    return f"babyai_train_{config.train_size}_infer_{config.inference_size}"
 
 
 def result_dir(config: DatasetConfig, results_root: str | Path = DEFAULT_RESULTS_ROOT) -> Path:
-    return (
-        Path(results_root)
-        / experiment_id(config)
-    )
+    return Path(results_root) / experiment_id(config)

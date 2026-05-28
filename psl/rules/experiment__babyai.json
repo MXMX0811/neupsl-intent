@@ -1,0 +1,82 @@
+{
+  "infer": {
+    "options": {
+      "admmreasoner.maxiterations": 500
+    }
+  },
+  "learn": {
+    "options": {
+      "admmreasoner.maxiterations": 200
+    }
+  },
+  "options": {
+    "runtime.db.intids": true,
+    "runtime.log.level": "INFO",
+    "runtime.learn.method": "Energy",
+    "categoricalevaluator.defaultpredicate": "Action",
+    "admmreasoner.computeperiod": 50,
+    "admmreasoner.epsilonabs": 1.0e-6,
+    "admmreasoner.epsilonrel": 1.0e-4,
+    "admmreasoner.stepsize": 1.0,
+    "gradientdescent.numsteps": 250,
+    "gradientdescent.runfulliterations": true,
+    "gradientdescent.stepsize": 1.0e-3
+  },
+  "rules": [
+    "1.0: NeuralAction(S, A) -> Action(S, A) ^2",
+    "1.0: InvalidAction(S, A) -> ~Action(S, A) ^2",
+    "1.0: PlausibleAction(S, A) -> Action(S, A) ^2",
+    "Action(S, +A) = 1 ."
+  ],
+  "predicates": {
+    "NeuralAction/2": {
+      "type": "DeepPredicate",
+      "options": {
+        "model-path": "../models/deeppsl.py::BabyAIActionModel",
+        "entity-data-map-path": "../data/experiment_babyai/neupsl-train/size_0050-valid_0100/entity-data-map.txt",
+        "entity-type-map-path": "../data/experiment_babyai/neupsl-train/size_0050-valid_0100/entity-type-map.txt",
+        "entity-argument-indexes": "0",
+        "action-size": 7,
+        "vocab-size": 1,
+        "type-vocab-size": 1,
+        "max-seq-len": 96,
+        "save-path": "../results/babyai_train_50_infer_1000/saved-networks/nesy-trained-pt",
+        "learning-rate": 1.0e-3
+      },
+      "targets": {
+        "learn": [],
+        "infer": []
+      }
+    },
+    "Action/2": {
+      "evaluations": [
+        {
+          "evaluator": "CategoricalEvaluator",
+          "options": {
+            "categoricalevaluator.categoryindexes": 1
+          }
+        }
+      ],
+      "targets": {
+        "learn": [],
+        "infer": []
+      },
+      "truth": {
+        "learn": [],
+        "infer": []
+      }
+    },
+    "InvalidAction/2": {
+      "observations": {
+        "learn": [],
+        "infer": []
+      }
+    },
+    "PlausibleAction/2": {
+      "observations": {
+        "learn": [],
+        "infer": []
+      }
+    }
+  }
+}
