@@ -67,7 +67,11 @@ class PSLRunner:
         entity_data_map_path = output_path.parent.resolve() / "entity-data-map.txt"
         entity_type_map_path = output_path.parent.resolve() / "entity-type-map.txt"
         h2_path = output_path.parent.resolve() / f"psl_h2_{uuid.uuid4().hex}"
-        _write_combined_entity_map(entity_data_map_path, [train_data_path / "entity-data-map.txt", inference_data_path / "entity-data-map.txt"])
+        _write_combined_deep_entity_map(
+            entity_data_map_path,
+            [train_data_path / "entity-data-map.txt", inference_data_path / "entity-data-map.txt"],
+            [train_data_path / "entity-type-map.txt", inference_data_path / "entity-type-map.txt"],
+        )
         _write_combined_entity_map(entity_type_map_path, [train_data_path / "entity-type-map.txt", inference_data_path / "entity-type-map.txt"])
 
         token_vocab = load_json(dataset_dir(config.name, data_root) / "token-vocab.json")
@@ -87,6 +91,7 @@ class PSLRunner:
             "entity-argument-indexes": "0",
             "save-path": str(save_path),
             "action-size": config.action_size,
+            "class-size": config.action_size,
             "vocab-size": len(token_vocab),
             "type-vocab-size": len(type_vocab),
             "max-seq-len": config.max_seq_len,
@@ -173,6 +178,35 @@ def _write_combined_entity_map(output_path: Path, input_paths: list[Path]) -> No
             if line.strip():
                 rows_by_entity.setdefault(line.split("\t", 1)[0], line)
     output_path.write_text("\n".join(rows_by_entity[key] for key in sorted(rows_by_entity, key=int)) + "\n", encoding="utf-8")
+
+
+def _write_combined_deep_entity_map(output_path: Path, data_paths: list[Path], type_paths: list[Path]) -> None:
+    ensure_dir(output_path.parent)
+    data_by_entity = {}
+    type_by_entity = {}
+    for input_path in data_paths:
+        if not input_path.exists():
+            raise FileNotFoundError(f"Missing entity data map: {input_path}")
+        for line in input_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            values = line.split("\t")
+            data_by_entity.setdefault(values[0], values)
+    for input_path in type_paths:
+        if not input_path.exists():
+            raise FileNotFoundError(f"Missing entity type map: {input_path}")
+        for line in input_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            values = line.split("\t")
+            type_by_entity.setdefault(values[0], values)
+
+    rows = []
+    for entity_id in sorted(data_by_entity, key=int):
+        data_row = data_by_entity[entity_id]
+        type_row = type_by_entity[entity_id]
+        rows.append("\t".join([entity_id, *data_row[1:-1], *type_row[1:], data_row[-1]]))
+    output_path.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
 
 def _prepend_python_to_path() -> None:

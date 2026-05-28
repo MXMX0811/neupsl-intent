@@ -124,19 +124,40 @@ class BabyAIActionModel(_DeepModelBase):
         return {"save_path": str(_checkpoint_path(save_path))}
 
     def _prepare_data(self, data, options):
-        data = np.asarray(data, dtype=np.int64)
-        if data.ndim != 2 or data.shape[1] < 3:
-            raise ValueError("Expected rows: step_id, token ids..., action_id. Type ids are loaded from entity-type-map-path.")
+        data = np.asarray(data, dtype=object)
+        max_seq_len = int(options.get("max-seq-len", 96))
+        if data.ndim == 1:
+            data = data.reshape(1, -1)
+        if data.ndim == 2 and data.shape[1] >= (2 * max_seq_len + 1):
+            data = data.astype(np.int64)
+            self.token_ids = torch.as_tensor(data[:, :max_seq_len], dtype=torch.long, device=self.device)
+            self.type_ids = torch.as_tensor(data[:, max_seq_len : 2 * max_seq_len], dtype=torch.long, device=self.device)
+            self.label_ids = torch.as_tensor(data[:, -1].astype(np.int64), dtype=torch.long, device=self.device)
+            self.labels = torch.as_tensor(one_hot(self.label_ids.cpu().numpy(), int(options.get("action-size", 7))), dtype=torch.float32, device=self.device)
+            return
+
+        entity_map_path = options.get("entity-data-map-path")
         type_map_path = options.get("entity-type-map-path")
+        if not entity_map_path:
+            raise ValueError("BabyAIActionModel requires entity-data-map-path.")
         if not type_map_path:
             raise ValueError("BabyAIActionModel requires entity-type-map-path.")
+
+        entity_rows = np.asarray(_load_int_rows(entity_map_path), dtype=np.int64)
         type_rows = np.asarray(_load_int_rows(type_map_path), dtype=np.int64)
+        entity_by_step = {int(row[0]): row for row in entity_rows}
         type_by_step = {int(row[0]): row[1:] for row in type_rows}
 
-        step_ids = data[:, 0].astype(np.int64)
-        self.token_ids = torch.as_tensor(data[:, 1:-1], dtype=torch.long, device=self.device)
+        if data.size == 0:
+            step_ids = entity_rows[:, 0].astype(np.int64)
+        else:
+            if data.ndim != 2 or data.shape[1] < 1:
+                raise ValueError("Expected at least one entity argument column containing step ids.")
+            step_ids = np.asarray([_extract_step_id(row, entity_by_step) for row in data], dtype=np.int64)
+        mapped_rows = np.asarray([entity_by_step[int(step_id)] for step_id in step_ids], dtype=np.int64)
+        self.token_ids = torch.as_tensor(mapped_rows[:, 1:-1], dtype=torch.long, device=self.device)
         self.type_ids = torch.as_tensor(np.asarray([type_by_step[int(step_id)] for step_id in step_ids]), dtype=torch.long, device=self.device)
-        self.label_ids = torch.as_tensor(data[:, -1].astype(np.int64), dtype=torch.long, device=self.device)
+        self.label_ids = torch.as_tensor(mapped_rows[:, -1].astype(np.int64), dtype=torch.long, device=self.device)
         self.labels = torch.as_tensor(one_hot(self.label_ids.cpu().numpy(), int(options.get("action-size", 7))), dtype=torch.float32, device=self.device)
 
     def _batch_ranges(self, size: int):
@@ -189,6 +210,17 @@ def _load_int_rows(path: str | Path) -> list[list[int]]:
             if line:
                 rows.append([int(value) for value in line.split("\t")])
     return rows
+
+
+def _extract_step_id(row, entity_by_step: dict[int, np.ndarray]) -> int:
+    for value in row:
+        try:
+            candidate = int(value)
+        except (TypeError, ValueError):
+            continue
+        if candidate in entity_by_step:
+            return candidate
+    raise KeyError(f"No known step id found in DeepPredicate row: {row}")
 
 
 def _checkpoint_path(save_path: str | Path) -> Path:

@@ -50,14 +50,15 @@ def derive_action_facts(example: StepExample) -> tuple[list[tuple[int, str]], li
 def write_rule_observations(out_dir: str | Path, partition: str, examples: list[StepExample]) -> dict[str, int]:
     invalid_rows = []
     plausible_rows = []
+    action_to_id = {action: index for index, action in enumerate(ACTION_NAMES)}
     for example in examples:
         invalid, plausible = derive_action_facts(example)
         invalid_rows.extend(invalid)
         plausible_rows.extend(plausible)
 
     out_dir = ensure_dir(out_dir)
-    write_psl(out_dir / f"invalid-action-{partition}.txt", invalid_rows)
-    write_psl(out_dir / f"plausible-action-{partition}.txt", plausible_rows)
+    write_psl(out_dir / f"invalid-action-{partition}.txt", [[step_id, action_to_id[action]] for step_id, action in invalid_rows])
+    write_psl(out_dir / f"plausible-action-{partition}.txt", [[step_id, action_to_id[action]] for step_id, action in plausible_rows])
     return {"invalid": len(invalid_rows), "plausible": len(plausible_rows)}
 
 

@@ -10,7 +10,7 @@
     }
   },
   "options": {
-    "runtime.db.intids": true,
+    "runtime.db.intids": false,
     "runtime.log.level": "INFO",
     "runtime.learn.method": "Energy",
     "categoricalevaluator.defaultpredicate": "Action",
@@ -37,6 +37,7 @@
         "entity-type-map-path": "../data/experiment_babyai/neupsl-train/size_0050-valid_0100/entity-type-map.txt",
         "entity-argument-indexes": "0",
         "action-size": 7,
+        "class-size": 7,
         "vocab-size": 1,
         "type-vocab-size": 1,
         "max-seq-len": 96,

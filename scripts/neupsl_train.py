@@ -34,7 +34,8 @@ def parse_args():
     parser.add_argument("--rules-path", type=Path)
     parser.add_argument("--model-path", type=Path)
     parser.add_argument("--model-class", default="BabyAIActionModel")
-    parser.add_argument("--pretrained-path", type=Path)
+    parser.add_argument("--init-mode", choices=["scratch", "pretrained"], default="scratch", help="Start NeuPSL from a fresh BabyAIPredictor or from a supervised checkpoint.")
+    parser.add_argument("--pretrained-path", type=Path, default=PROJECT_ROOT / "ckpt" / "pretrained-babyai-transformer.pt")
     parser.add_argument("--backend", choices=["runtime", "cli"], default="runtime")
     return parser.parse_args()
 
@@ -59,6 +60,7 @@ def main() -> None:
 
     result_dir = ensure_dir(build_result_dir(config, args.results_root))
     checkpoint_dir = result_dir / "checkpoints"
+    pretrained_path = _resolve_pretrained_path(args.init_mode, args.pretrained_path)
     runner = PSLRunner()
     config_path = runner.build_config(
         config,
@@ -75,8 +77,11 @@ def main() -> None:
         model_path=args.model_path,
         model_class=args.model_class,
         random_seed=args.random_seed,
-        pretrained_path=args.pretrained_path,
+        pretrained_path=pretrained_path,
     )
+    print(f"NeuPSL init mode: {args.init_mode}")
+    if pretrained_path is not None:
+        print(f"Pretrained checkpoint: {pretrained_path}")
 
     if args.backend == "runtime":
         result = runner.run_runtime(config_path, result_dir)
@@ -90,6 +95,20 @@ def main() -> None:
     else:
         completed = runner.run(config_path, result_dir / "inferred-predicates")
         print(f"NeuPSL CLI complete. returncode={completed.returncode}")
+
+
+def _resolve_pretrained_path(init_mode: str, pretrained_path: Path | None) -> Path | None:
+    if init_mode == "scratch":
+        return None
+    if pretrained_path is None:
+        raise ValueError("--init-mode pretrained requires --pretrained-path.")
+    pretrained_path = pretrained_path.resolve()
+    if not pretrained_path.exists():
+        raise FileNotFoundError(
+            f"Pretrained checkpoint not found: {pretrained_path}. "
+            "Run scripts/pretrain_transformer.py first or pass --init-mode scratch."
+        )
+    return pretrained_path
 
 
 if __name__ == "__main__":

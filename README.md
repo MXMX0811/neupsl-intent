@@ -92,7 +92,14 @@ Run NeuPSL:
 
 ```bash
 python scripts/neupsl_train.py \
+  --init-mode pretrained \
   --pretrained-path ckpt/pretrained-babyai-transformer.pt
+```
+
+To train NeuPSL from a fresh neural model instead:
+
+```bash
+python scripts/neupsl_train.py --init-mode scratch
 ```
 
 Summarize results:

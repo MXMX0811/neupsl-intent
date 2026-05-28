@@ -37,7 +37,11 @@ class BabyAIPredictor(nn.Module):
             dropout=dropout,
             batch_first=True,
         )
-        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        self.transformer = nn.TransformerEncoder(
+            encoder_layer,
+            num_layers=num_layers,
+            enable_nested_tensor=False,
+        )
         self.classifier = nn.Sequential(
             nn.Linear(embedding_dim, embedding_dim),
             nn.ReLU(),

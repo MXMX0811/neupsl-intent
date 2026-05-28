@@ -150,9 +150,9 @@ def _write_targets(out_dir: Path, partition: str, rows: list[dict], action_vocab
     target_rows = []
     truth_rows = []
     for row in rows:
-        for action, action_id in action_vocab.items():
-            target_rows.append([row["step_id"], action])
-            truth_rows.append([row["step_id"], action, int(action_id == row["action_id"])])
+        for action_id in action_vocab.values():
+            target_rows.append([row["step_id"], action_id])
+            truth_rows.append([row["step_id"], action_id, int(action_id == row["action_id"])])
     write_psl(out_dir / f"action-target-{partition}.txt", target_rows)
     write_psl(out_dir / f"action-truth-{partition}.txt", truth_rows)
 

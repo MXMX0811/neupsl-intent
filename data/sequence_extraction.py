@@ -303,10 +303,10 @@ def _action_lookup(env) -> dict[int, str]:
 
 
 def _minigrid_features(env) -> dict:
-    mission_kind, target_type, target_color, target_pos = _target_from_instr(env.unwrapped.instrs)
+    mission_kind, target_type, target_color, target_positions = _target_from_instr(env.unwrapped.instrs)
     front_cell = env.unwrapped.grid.get(*env.unwrapped.front_pos)
     carrying = env.unwrapped.carrying
-    relation, distance = _target_relation_distance(env, target_pos)
+    relation, distance = _target_relation_distance(env, target_positions)
     front_type = "empty" if front_cell is None else front_cell.type
     front_color = "none" if front_cell is None or front_cell.color is None else front_cell.color
     front_state = "none"
@@ -332,7 +332,7 @@ def _minigrid_features(env) -> dict:
     }
 
 
-def _target_from_instr(instr) -> tuple[str, str, str, tuple[int, int] | None]:
+def _target_from_instr(instr) -> tuple[str, str, str, list[tuple[int, int]]]:
     name = type(instr).__name__.lower()
     if "pickup" in name:
         mission_kind = "pickup"
@@ -343,17 +343,21 @@ def _target_from_instr(instr) -> tuple[str, str, str, tuple[int, int] | None]:
     desc = getattr(instr, "desc", None)
     target_type = getattr(desc, "type", "unknown")
     target_color = getattr(desc, "color", "unknown")
-    target_pos = None
+    target_positions = []
     obj_poss = getattr(desc, "obj_poss", None)
     if obj_poss:
-        target_pos = tuple(int(value) for value in obj_poss[0])
-    return mission_kind, target_type, target_color, target_pos
+        target_positions = [tuple(int(value) for value in pos) for pos in obj_poss]
+    return mission_kind, target_type, target_color, target_positions
 
 
-def _target_relation_distance(env, target_pos: tuple[int, int] | None) -> tuple[str, str]:
-    if target_pos is None:
+def _target_relation_distance(env, target_positions: list[tuple[int, int]]) -> tuple[str, str]:
+    if not target_positions:
         return "unknown", "unknown"
     agent_x, agent_y = env.unwrapped.agent_pos
+    target_pos = min(
+        target_positions,
+        key=lambda pos: abs(pos[0] - int(agent_x)) + abs(pos[1] - int(agent_y)),
+    )
     dx = target_pos[0] - int(agent_x)
     dy = target_pos[1] - int(agent_y)
     dist = abs(dx) + abs(dy)
