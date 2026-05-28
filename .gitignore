@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.DS_Store
+
+.vscode/
+
+data/raw/
+data/*/
+experiments/
+results/
+ckpt/
+
+psl/psl-cli-*.jar
+*.mv.db
