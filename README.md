@@ -39,6 +39,7 @@ psl/
 scripts/
   check_env.py
   create_data.py
+  export_readme_figures.py
   pretrain_transformer.py
   neupsl_train.py
   evaluate.py
@@ -501,6 +502,55 @@ NeuPSL checkpoint accuracy: 0.8459
 PSL fused Action accuracy: 0.8399
 PSL prediction coverage: 1.0
 ```
+
+### Inference Scene Examples
+
+The README figures below are exported from the same inference artifacts used by
+`03_inference_demo.ipynb`:
+
+```bash
+python scripts/export_readme_figures.py
+```
+
+Each panel is the rendered MiniGrid state before the next expert action. The
+title reports:
+
+```text
+next action    BabyAIBot expert label for the current step
+PSL fused      argmax over PSL's fused Action(S,A) atoms
+green title    PSL fused prediction matches the expert action
+red title      PSL fused prediction differs from the expert action
+```
+
+Pickup example:
+
+![Pickup inference example](img/inference_pickup_example.png)
+
+This short `PickupLoc` episode shows the agent rotating, moving toward the
+target ball, and then selecting `pickup`. The symbolic rule evidence marks
+`pickup` as plausible when the target object is directly in front of the agent,
+so the fused PSL prediction agrees with the expert at the decisive step.
+
+Toggle example:
+
+![Toggle inference example](img/inference_toggle_example.png)
+
+This `OpenDoor` episode shows the agent navigating to a door and finally
+selecting `toggle`. The rule observations discourage `toggle` when the object in
+front is not a door, and support `toggle` when a closed door is in front. The
+last frame is therefore a clean case where the neural prediction and symbolic
+mechanics align.
+
+Drop example:
+
+![Drop inference example](img/inference_drop_example.png)
+
+`drop` is intentionally included as a limitation example. In the current
+`PickupLoc`/`OpenDoor` inference split, `drop` appears only once and is not a
+primary goal template. PSL correctly follows the early pickup-related steps, but
+the fused prediction misses the rare final `drop`. This is useful diagnostic
+evidence that the current rule library and data mix are still biased toward
+navigation, pickup, and door-opening behavior.
 
 ## Current Limitations
 
