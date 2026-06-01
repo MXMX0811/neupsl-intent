@@ -3,6 +3,15 @@
 `neupsl-intent` is a BabyAI/MiniGrid action-sequence prediction demo for a
 Transformer + NeuPSL pipeline.
 
+![Transformer + PSL BabyAI teaser](img/teaser_transformer_psl_babyai.png)
+
+The teaser shows three real BabyAI trajectory snippets replayed from generated
+inference data. Each row compares the expert next action with the pretrained
+Transformer prediction and the NeuPSL-trained prediction. The right side
+summarizes the one-step inference flow: the same step is encoded for the neural
+branch and converted into symbolic rule facts for the PSL branch, then both
+sources are fused into `Action(S,A)`.
+
 The core task is:
 
 ```text
